@@ -1,0 +1,39 @@
+---
+- name: Install network-manager-openvpn plugin
+  apt:
+    pkg:
+      - network-manager-openvpn-gnome
+- name: Create launcher directory
+  file:
+    path: ~/.vpn
+    state: directory
+  become: no
+- name: Extract openvpn connection settings archive to ~/.vpn
+  unarchive:
+    src: "{{ openvpn_archive }}"
+    dest: "~/.vpn"
+  become: no
+- name: Allow md5 certs
+  lineinfile:
+    path: ~/.vpn/{{ openvpn_conn_name }}.ovpn
+    regexp: '^tls-cipher "DEFAULT:@SECLEVEL='
+    line: tls-cipher "DEFAULT:@SECLEVEL=0"
+  become: no
+- name: Allow for network manager setting changes
+  template:
+    src: org.freedesktop.NetworkManager.pkla.j2
+    dest: /etc/polkit-1/localauthority/50-local.d/org.freedesktop.NetworkManager.pkla
+- name: Import openvpn connection
+  command: nmcli connection import type openvpn file ~/.vpn/{{ openvpn_conn_name }}.ovpn
+  become: no
+- name: Apply openvpn connection settings
+  command: nmcli connection modify {{ openvpn_conn_name }} +vpn.data username={{ openvpn_username }}
+  become: no
+- name: Restrict openvpn connection to DNS names
+  command: nmcli connection modify {{ openvpn_conn_name }} ipv4.never-default yes ipv6.never-default yes ipv6.dns-search "{{ openvpn_dns_search|join(",") }}" ipv4.dns-search "{{ openvpn_dns_search|join(",") }}"
+  become: no
+  when: openvpn_dns_search| default([])| length > 0
+- name: Remove allowance for network manager setting changes
+  file:
+    path: /etc/polkit-1/localauthority/50-local.d/org.freedesktop.NetworkManager.pkla
+    state: absent

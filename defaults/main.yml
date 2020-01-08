@@ -1,0 +1,6 @@
+---
+openvpn_connection_name: None
+openvpn_archive: None
+openvpn_conn_name: None
+openvpn_username: "{{ ansible_env.SUDO_USER }}"
+openvpn_dns_search: []
